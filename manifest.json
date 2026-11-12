@@ -1,0 +1,32 @@
+{
+  "name": "واترمارک‌زن",
+  "short_name": "واترمارک‌زن",
+  "description": "واترمارک دسته‌جمعی روی عکس‌ها — لوگو یا متن، کاملاً آفلاین و داخل مرورگر خودت.",
+  "lang": "fa",
+  "dir": "rtl",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone"],
+  "orientation": "any",
+  "background_color": "#0c0d10",
+  "theme_color": "#c22a20",
+  "categories": ["photo", "graphics", "productivity"],
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "file_handlers": [
+    {
+      "action": "./",
+      "accept": { "image/*": [".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp"] }
+    }
+  ],
+  "share_target": {
+    "action": "./",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": { "files": [{ "name": "images", "accept": ["image/*"] }] }
+  }
+}
