@@ -5,7 +5,7 @@
 
 ## استفاده
 
-**آنلاین:** https://parsaaminzade.github.io/etehad-husseini/
+**آنلاین:** https://parsaaminzade.github.io/Etehad-husseini/
 
 **نصب مثل نرم‌افزار:** صفحه را باز کن و دکمه‌ی «نصب برنامه» را بزن (ویندوز، اندروید، مک).
 روی آیفون: دکمه‌ی اشتراک‌گذاری ← Add to Home Screen.
