@@ -223,6 +223,16 @@
 
   .note{font-size:11px;color:var(--txt-faint);line-height:1.7}
 
+  /* Blend If */
+  .bif{position:relative;direction:ltr;margin:2px 0 16px;touch-action:none}
+  .bif-track{height:13px;border-radius:3px;border:1px solid var(--line-strong)}
+  .bif i{position:absolute;top:14px;width:9px;height:10px;cursor:ew-resize}
+  .bif i.lf{margin-left:-9px;clip-path:polygon(0 100%,100% 0,100% 100%)}
+  .bif i.rt{clip-path:polygon(0 0,100% 100%,0 100%)}
+  .bif i.bk{background:#0a0a0a;filter:drop-shadow(0 0 .8px rgba(255,255,255,.85))}
+  .bif i.wh{background:#f4f4f4;filter:drop-shadow(0 0 .8px rgba(0,0,0,.6))}
+  .bif i:hover{filter:drop-shadow(0 0 2px var(--acc))}
+
   .exportbar{flex:0 0 auto;padding:13px 14px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:9px;background:var(--bg2)}
   .bar{height:5px;border-radius:5px;background:var(--line-strong);overflow:hidden;display:none}
   .bar.on{display:block}
@@ -483,6 +493,36 @@
         </details>
 
         <details class="group">
+          <summary><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M3 12h18"/><path d="M7 7v10M12 5v14M17 8v8"/></svg></span>
+            ترکیب پیشرفته (Blend If)<svg class="chev" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></summary>
+          <div class="group-body">
+            <label class="sw"><span>فعال‌سازی</span><input type="checkbox" id="bifOn"><span class="track"></span></label>
+            <div class="field"><label>کانال</label>
+              <select id="bifCh"><option value="gray">خاکستری</option><option value="r">قرمز</option><option value="g">سبز</option><option value="b">آبی</option></select></div>
+            <div class="field">
+              <label>این لایه — خودِ واترمارک <span class="val" id="bifTv"></span></label>
+              <div class="bif" id="bifT"><div class="bif-track"></div></div>
+            </div>
+            <div class="field">
+              <label>لایه‌ی زیرین — عکس <span class="val" id="bifUv"></span></label>
+              <div class="bif" id="bifU"><div class="bif-track"></div></div>
+            </div>
+            <div class="note">
+              هر نوار از سیاه (۰) تا سفید (۲۵۵) است. پیکسل‌هایی که بیرون محدوده بمانند حذف می‌شوند.
+              <b>«این لایه»</b> روی خود واترمارک کار می‌کند و <b>«لایه‌ی زیرین»</b> تصمیم می‌گیرد واترمارک روی کدام قسمت‌های عکس دیده شود.
+              دسته‌ها را بکش؛ با نگه‌داشتن <b>Alt</b> دسته نصف می‌شود و لبه به‌جای برش ناگهانی، نرم محو می‌شود.
+            </div>
+            <div class="chips" id="bifPresets">
+              <button class="chip" data-bif="dark">فقط روی تیرگی‌های عکس</button>
+              <button class="chip" data-bif="light">فقط روی روشنی‌های عکس</button>
+              <button class="chip" data-bif="nowhite">سفیدی واترمارک حذف شود</button>
+              <button class="chip" data-bif="noblack">سیاهی واترمارک حذف شود</button>
+              <button class="chip" data-bif="reset">بازنشانی</button>
+            </div>
+          </div>
+        </details>
+
+        <details class="group">
           <summary><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z"/></svg></span>
             تکرار شطرنجی (ضدکراپ)<svg class="chev" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></summary>
           <div class="group-body">
@@ -577,6 +617,7 @@
     <div class="kv"><b>قالب‌های آماده</b><span>۲۴ قالب استاندارد برای نسبت‌های مختلف (۱:۱، ۴:۵، ۹:۱۶، ۱۶:۹، ۳:۲) با پیش‌نمایش زنده.</span></div>
     <div class="kv"><b>جایگاه یکسان</b><span>۹ نقطه‌ی آماده + کشیدن آزاد روی پیش‌نمایش؛ نسبی ذخیره می‌شود تا روی همه‌ی عکس‌ها یک‌جور بیفتد.</span></div>
     <div class="kv"><b>زوم و حرکت</b><span>اسکرول = حرکت عمودی · Shift+اسکرول = افقی · Ctrl+اسکرول = زوم روی نشانگر · Space یا کلیک وسط = ابزار دست · دابل‌کلیک = تناسب</span></div>
+    <div class="kv"><b>Blend If</b><span>مثل فتوشاپ: واترمارک فقط روی محدوده‌ی روشنایی دلخواهی از عکس دیده می‌شود، یا سفیدی/سیاهی خودِ لوگو حذف می‌شود. دسته‌ها را با Alt نصف کن تا لبه نرم شود.</span></div>
     <div class="kv"><b>بازگردانی</b><span>Ctrl+Z برمی‌گرداند و Ctrl+Shift+Z (یا Ctrl+Y) دوباره اعمال می‌کند — شامل تنظیمات، قالب‌ها، جایگاه، انتخاب لوگو و حتی حذف عکس.</span></div>
     <div class="kv"><b>میان‌بُرها</b><span>←/→ عکس بعدی و قبلی · Delete حذف عکس · O نمایش اصل · ۰ تناسب · ۱ اندازه‌ی واقعی · +/− زوم · Ctrl+S دانلود · Ctrl+Z بازگردانی</span></div>
     <div class="kv"><b>حریم خصوصی</b><span>هیچ عکسی به هیچ سروری نمی‌رود؛ همه‌ی پردازش روی Canvas مرورگر خودت و بدون اینترنت هم کار می‌کند.</span></div>
@@ -597,6 +638,7 @@ const S={
   grid:8, posMode:'grid', cx:.5, cy:.5, margin:4, offX:0, offY:0,
   size:20, opacity:50, rotation:0, blend:'source-over',
   tile:false, tileGap:60, stagger:true,
+  bifOn:false, bifCh:'gray', bifT:[0,0,255,255], bifU:[0,0,255,255],
   fmt:'image/jpeg', quality:92, maxDim:0, prefix:'', suffix:'-wm', numbered:false
 };
 let items=[], sel=-1, logos=[], logoId=null, showOrig=false, rafPending=false;
@@ -604,7 +646,7 @@ let zoom=1, fitScale=1, panX=0, panY=0, handTool=false, spaceDown=false;
 
 /* ================= undo / redo ================= */
 const UNDO=[], REDO=[]; let lastSnap=null, restoring=false, commitTimer=null;
-function snap(){ return {s:{...S}, logoId, items:[...items], sel}; }
+function snap(){ return {s:{...S, bifT:[...S.bifT], bifU:[...S.bifU]}, logoId, items:[...items], sel}; }
 function sig(p){ return JSON.stringify(p.s)+'|'+p.logoId+'|'+p.items.map(i=>i.id).join(',')+'|'+p.sel; }
 function commit(){
   if(restoring) return;
@@ -616,7 +658,8 @@ function commit(){
 function scheduleCommit(){ clearTimeout(commitTimer); commitTimer=setTimeout(commit,350); }
 function applySnap(p){
   restoring=true;
-  Object.assign(S,p.s); logoId=p.logoId; items=p.items; sel=Math.min(p.sel,items.length-1);
+  Object.assign(S,p.s,{bifT:[...p.s.bifT],bifU:[...p.s.bifU]});
+  logoId=p.logoId; items=p.items; sel=Math.min(p.sel,items.length-1);
   tintCache.key=null; renderLogos(); renderThumbs(); syncFromState();
   restoring=false; lastSnap=snap(); updateUndoBtns();
 }
@@ -785,7 +828,46 @@ function measureText(ctx,s,lines,fontPx){
   let w=0; for(const l of lines) w=Math.max(w,ctx.measureText(l).width);
   return {w,h:lines.length*fontPx*1.25};
 }
+/* --- Blend If: محدوده‌ی روشنایی که واترمارک در آن دیده می‌شود --- */
+const BIF_DEF=[0,0,255,255];
+function bifIdle(a){ return a[0]===0&&a[1]===0&&a[2]===255&&a[3]===255; }
+function bifActive(s){ return !!s.bifOn && !(bifIdle(s.bifT)&&bifIdle(s.bifU)); }
+function bifF(v,a,b,c,d){
+  if(a===b){ if(v<a) return 0; } else { if(v<=a) return 0; if(v<b) return (v-a)/(b-a); }
+  if(c===d){ if(v>d) return 0; } else { if(v>=d) return 0; if(v>c) return 1-(v-c)/(d-c); }
+  return 1;
+}
+const chVal=(r,g,b,ch)=> ch==='r'?r : ch==='g'?g : ch==='b'?b : (r*299+g*587+b*114)/1000;
+
 function drawWatermark(ctx,W,H,s){
+  if(!bifActive(s)){
+    ctx.save(); ctx.globalAlpha=s.opacity/100; ctx.globalCompositeOperation=s.blend;
+    paintWM(ctx,W,H,s); ctx.restore(); return;
+  }
+  const off=document.createElement('canvas'); off.width=W; off.height=H;
+  const octx=off.getContext('2d',{willReadFrequently:true});
+  paintWM(octx,W,H,s);
+  let wm,base;
+  try{ wm=octx.getImageData(0,0,W,H); base=ctx.getImageData(0,0,W,H); }
+  catch(e){
+    ctx.save(); ctx.globalAlpha=s.opacity/100; ctx.globalCompositeOperation=s.blend;
+    ctx.drawImage(off,0,0); ctx.restore(); return;
+  }
+  const wd=wm.data, bd=base.data, t=s.bifT, u=s.bifU, ch=s.bifCh;
+  const skipT=bifIdle(t), skipU=bifIdle(u);
+  for(let i=0;i<wd.length;i+=4){
+    const a=wd[i+3]; if(!a) continue;
+    let f=1;
+    if(!skipT) f=bifF(chVal(wd[i],wd[i+1],wd[i+2],ch),t[0],t[1],t[2],t[3]);
+    if(f&&!skipU) f*=bifF(chVal(bd[i],bd[i+1],bd[i+2],ch),u[0],u[1],u[2],u[3]);
+    if(f!==1) wd[i+3]=a*f;
+  }
+  octx.putImageData(wm,0,0);
+  ctx.save(); ctx.globalAlpha=s.opacity/100; ctx.globalCompositeOperation=s.blend;
+  ctx.drawImage(off,0,0); ctx.restore();
+}
+
+function paintWM(ctx,W,H,s){
   const src = s.mode==='logo' ? logoSource() : null;
   const lines = s.mode==='text' ? String(s.text||'').split('\n') : [];
   if(!src && (s.mode!=='text' || !lines.join('').trim())) return;
@@ -799,8 +881,6 @@ function drawWatermark(ctx,W,H,s){
   }
 
   ctx.save();
-  ctx.globalAlpha=s.opacity/100;
-  ctx.globalCompositeOperation=s.blend;
 
   const paint=()=>{
     if(src){ ctx.drawImage(src,-uw/2,-uh/2,uw,uh); return; }
@@ -1092,6 +1172,66 @@ $('#tintCustom').addEventListener('input',e=>{
   render();
 });
 
+/* ---- Blend If sliders (دسته‌های نصف‌شونده مثل فتوشاپ) ---- */
+const CH_GRAD={gray:'linear-gradient(90deg,#000,#fff)',r:'linear-gradient(90deg,#000,#f33)',
+               g:'linear-gradient(90deg,#000,#3f3)',b:'linear-gradient(90deg,#000,#48f)'};
+function makeBif(id,key,readoutId){
+  const el=$('#'+id), track=el.querySelector('.bif-track'), hs=[];
+  for(let i=0;i<4;i++){
+    const h=document.createElement('i');
+    h.dataset.h=i;
+    h.className=(i<2?'bk ':'wh ')+(i%2===0?'lf':'rt');
+    h.title=i<2?'سایه‌ها — با Alt نصف می‌شود':'روشنی‌ها — با Alt نصف می‌شود';
+    el.appendChild(h); hs.push(h);
+  }
+  const pair=n=>fa(n[0])+(n[0]===n[1]?'':'/'+fa(n[1]));
+  function draw(){
+    const a=S[key];
+    hs.forEach((h,i)=>h.style.left=(a[i]/255*100)+'%');
+    track.style.background=CH_GRAD[S.bifCh]||CH_GRAD.gray;
+    $('#'+readoutId).textContent=pair([a[0],a[1]])+' → '+pair([a[2],a[3]]);
+  }
+  let drag=null;
+  el.addEventListener('pointerdown',e=>{
+    const h=e.target.closest('i'); if(!h) return;
+    drag={i:+h.dataset.h,x:e.clientX,start:[...S[key]]};
+    el.setPointerCapture(e.pointerId); e.preventDefault();
+    if(!S.bifOn){ S.bifOn=true; $('#bifOn').checked=true; }
+  });
+  el.addEventListener('pointermove',e=>{
+    if(!drag) return;
+    const w=track.getBoundingClientRect().width||1;
+    const dv=(e.clientX-drag.x)/w*255;
+    const v=[...drag.start];
+    if(e.altKey) v[drag.i]=drag.start[drag.i]+dv;
+    else (drag.i<2?[0,1]:[2,3]).forEach(k=>v[k]=drag.start[k]+dv);
+    for(let i=0;i<4;i++) v[i]=clamp(Math.round(v[i]),0,255);
+    v[1]=Math.max(v[1],v[0]); v[2]=Math.max(v[2],v[1]); v[3]=Math.max(v[3],v[2]);
+    v[0]=Math.min(v[0],v[1]);
+    S[key]=v; draw(); render();
+  });
+  const up=()=>drag=null;
+  el.addEventListener('pointerup',up); el.addEventListener('pointercancel',up);
+  return draw;
+}
+const drawBifT=makeBif('bifT','bifT','bifTv');
+const drawBifU=makeBif('bifU','bifU','bifUv');
+function drawBif(){ drawBifT(); drawBifU(); }
+$('#bifOn').addEventListener('change',e=>{S.bifOn=e.target.checked;render();});
+$('#bifCh').addEventListener('change',e=>{S.bifCh=e.target.value;drawBif();render();});
+$$('#bifPresets .chip').forEach(b=>b.onclick=()=>{
+  const k=b.dataset.bif;
+  if(k==='reset'){ S.bifT=[...BIF_DEF]; S.bifU=[...BIF_DEF]; S.bifOn=false; }
+  else{
+    S.bifOn=true;
+    if(k==='dark')    S.bifU=[0,0,110,175];
+    if(k==='light')   S.bifU=[85,150,255,255];
+    if(k==='nowhite') S.bifT=[0,0,200,245];
+    if(k==='noblack') S.bifT=[15,70,255,255];
+  }
+  $('#bifOn').checked=S.bifOn; drawBif(); render();
+});
+
 $('#wmText').addEventListener('input',e=>{S.text=e.target.value;render();});
 $('#fontFam').addEventListener('change',e=>{S.fontFam=e.target.value;render();});
 $('#fontW').addEventListener('change',e=>{S.fontW=e.target.value;render();});
@@ -1126,6 +1266,9 @@ function syncFromState(){
   $('#paneText').style.display=S.mode==='text'?'flex':'none';
   $('#qualityField').style.display=S.fmt==='image/png'?'none':'flex';
   $$('#grid9 button').forEach((x,j)=>x.classList.toggle('on',S.posMode==='grid'&&j===S.grid));
+  if(!Array.isArray(S.bifT)) S.bifT=[...BIF_DEF];
+  if(!Array.isArray(S.bifU)) S.bifU=[...BIF_DEF];
+  $('#bifOn').checked=!!S.bifOn; $('#bifCh').value=S.bifCh||'gray'; drawBif();
   syncLabels(); render();
 }
 
