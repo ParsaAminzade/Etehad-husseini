@@ -1,5 +1,5 @@
 /* واترمارک‌زن — سرویس‌ورکر: اجرای کامل آفلاین */
-const VERSION = 'wm-v5';
+const VERSION = 'wm-v6';
 const ASSETS = [
   './',
   './index.html',

@@ -566,6 +566,17 @@
               <div class="seg" id="segBgFill"><button data-v="white" class="on">سفید</button><button data-v="none">شفاف</button><button data-v="color">رنگ دلخواه</button></div>
               <input type="color" id="bgColor" value="#ffffff" style="margin-top:6px;display:none"></div>
             <div class="note" id="bgInfo"></div>
+            <div style="height:1px;background:var(--line);margin:4px 0"></div>
+            <label class="sw"><span><b>حذف واترمارک از روی خود سوژه</b></span><input type="checkbox" id="flatOn"><span class="track"></span></label>
+            <div class="field"><label>تا چقدر روشن‌تر را واترمارک بدانیم <span class="val" id="vFlatCap">۳۰</span></label>
+              <input type="range" id="flatCap" min="5" max="90" step="1" value="30"></div>
+            <div class="field"><label>ریزترین جزئیاتی که باید سالم بماند <span class="val" id="vFlatR">۵</span></label>
+              <input type="range" id="flatR" min="1" max="14" step="1" value="5"></div>
+            <div class="note">
+              واترمارک روی سوژه، سطح را به‌اندازه‌ی مشخصی روشن‌تر می‌کند. این بخش همان بالاآمدگی را پیدا و کم می‌کند،
+              ولی چیزهایی که خیلی روشن‌ترند — نوشته و لوگوی روی قطعه — را دست نمی‌زند.
+              اگر نوشته‌ی روی قطعه کم‌رنگ شد، «تا چقدر روشن‌تر» را کمتر کن؛ اگر رد واترمارک ماند، بیشترش کن.
+            </div>
             <div class="note">
               برای عکس محصول روی زمینه‌ی سفید ساخته شده. از لبه‌های کادر به سمت داخل پر می‌شود،
               پس واترمارکِ روشن پاک می‌شود ولی سوژه و جزئیات داخلش (مثل پایه‌های فلزی براق) سالم می‌مانند.
@@ -727,6 +738,7 @@ const S={
   hue:0, sat:100, bri:100, con:100,
   ckOn:false, ckHue:0, ckTol:40, ckFea:30, ckAmt:60,
   bgOn:false, bgT:205, bgFea:8, bgMin:5, bgGray:true, bgFill:'white', bgColor:'#ffffff',
+  flatOn:false, flatCap:30, flatR:5,
   fmt:'image/jpeg', quality:92, maxDim:0, prefix:'', suffix:'-wm', numbered:false
 };
 let items=[], sel=-1, logos=[], logoId=null, showOrig=false, rafPending=false;
@@ -950,6 +962,22 @@ function boxBlur(src,W,H,r){
   }
   return out;
 }
+// پس‌زمینه = هرچه روشن‌تر از آستانه و از لبه‌های کادر قابل دسترسی
+function edgeFloodBg(lum,W,H,T){
+  const N=W*H, bg=new Uint8Array(N), st=new Int32Array(N);
+  let sp=0;
+  const push=k=>{ if(!bg[k]&&lum[k]>T){ bg[k]=1; st[sp++]=k; } };
+  for(let x=0;x<W;x++){ push(x); push((H-1)*W+x); }
+  for(let y=0;y<H;y++){ push(y*W); push(y*W+W-1); }
+  while(sp){
+    const k=st[--sp], x=k%W, y=(k-x)/W;
+    if(x>0) push(k-1);
+    if(x<W-1) push(k+1);
+    if(y>0) push(k-W);
+    if(y<H-1) push(k+W);
+  }
+  return bg;
+}
 function applyBgRemove(ctx,W,H,s){
   if(!s.bgOn) return;
   let img; try{ img=ctx.getImageData(0,0,W,H); }catch(e){ return; }
@@ -962,24 +990,13 @@ function applyBgRemove(ctx,W,H,s){
   for(let i=0,j=0;j<N;i+=4,j++) lum[j]=(p[i]*299+p[i+1]*587+p[i+2]*114)/1000;
 
   // ۱) سیلاب از لبه‌ها روی هرچه روشن‌تر از آستانه
-  const T=s.bgT, bg=new Uint8Array(N), st=new Int32Array(N);
-  let sp=0;
-  const push=k=>{ if(!bg[k]&&lum[k]>T){ bg[k]=1; st[sp++]=k; } };
-  for(let x=0;x<W;x++){ push(x); push((H-1)*W+x); }
-  for(let y=0;y<H;y++){ push(y*W); push(y*W+W-1); }
-  while(sp){
-    const k=st[--sp], x=k%W, y=(k-x)/W;
-    if(x>0) push(k-1);
-    if(x<W-1) push(k+1);
-    if(y>0) push(k-W);
-    if(y<H-1) push(k+W);
-  }
+  const bg=edgeFloodBg(lum,W,H,s.bgT), st=new Int32Array(N);
 
   // ۲) دور ریختن لکه‌های ریز باقی‌مانده
   const minA=Math.max(8, Math.round(N*(s.bgMin/10000)));
   const lbl=new Int32Array(N), sizes=[0];
   let cur=0;
-  if(minA>8 || true) for(let k0=0;k0<N;k0++){
+  for(let k0=0;k0<N;k0++){
     if(bg[k0]||lbl[k0]) continue;
     cur++; let sp2=0, cnt=0; st[sp2++]=k0; lbl[k0]=cur;
     while(sp2){
@@ -1026,6 +1043,90 @@ function applyBgRemove(ctx,W,H,s){
   const frac=keep/N;
   bgStat={frac, warn: frac>0.55 || frac<0.0004};
 }
+/* --- حذف واترمارک از روی سوژه: برداشتن «فلات» روشن‌تر --- */
+// کمینه/بیشینه‌ی کشویی با صف دوسر — خطی نسبت به تعداد پیکسل
+function morphPass(src,W,H,r,isMax){
+  const tmp=new Float32Array(src.length), out=new Float32Array(src.length);
+  const dq=new Int32Array(Math.max(W,H)+2);
+  const worse=(a,b)=> isMax ? a<=b : a>=b;
+  for(let y=0;y<H;y++){
+    const o=y*W; let head=0, tail=0;
+    for(let x=0;x<W+r;x++){
+      if(x<W){
+        const v=src[o+x];
+        while(tail>head && worse(src[o+dq[tail-1]],v)) tail--;
+        dq[tail++]=x;
+      }
+      const i=x-r;
+      if(i>=0){
+        while(dq[head]<i-r) head++;
+        tmp[o+i]=src[o+dq[head]];
+      }
+    }
+  }
+  for(let x=0;x<W;x++){
+    let head=0, tail=0;
+    for(let y=0;y<H+r;y++){
+      if(y<H){
+        const v=tmp[y*W+x];
+        while(tail>head && worse(tmp[dq[tail-1]*W+x],v)) tail--;
+        dq[tail++]=y;
+      }
+      const i=y-r;
+      if(i>=0){
+        while(dq[head]<i-r) head++;
+        out[i*W+x]=tmp[dq[head]*W+x];
+      }
+    }
+  }
+  return out;
+}
+function applyFlatten(ctx,W,H,s){
+  if(!s.flatOn) return;
+  let img; try{ img=ctx.getImageData(0,0,W,H); }catch(e){ return; }
+  const p=img.data, N=W*H;
+  const lum=new Float32Array(N);
+  for(let i=0,j=0;j<N;i+=4,j++) lum[j]=(p[i]*299+p[i+1]*587+p[i+2]*114)/1000;
+
+  // ماسک سوژه با همان روش پر کردن از لبه
+  const bg=edgeFloodBg(lum,W,H,s.bgT);
+  let inside=0;
+  for(let k=0;k<N;k++) if(!bg[k]) inside++;
+  const useMask = inside>N*0.005;
+
+  // باز کردن مورفولوژیک: نوشته‌ی روشن حذف، فلات واترمارک باقی
+  const r=Math.max(1,s.flatR|0);
+  const opened=morphPass(morphPass(lum,W,H,r,false),W,H,r,true);
+
+  // سطح پایه = صدک ۱۵ داخل سوژه
+  const hist=new Int32Array(256);
+  let cnt=0;
+  for(let k=0;k<N;k++){ if(useMask&&bg[k]) continue; hist[clamp(opened[k]|0,0,255)]++; cnt++; }
+  if(!cnt) return;
+  let acc=0, base=0;
+  for(let v=0;v<256;v++){ acc+=hist[v]; if(acc>=cnt*0.15){ base=v; break; } }
+
+  const cap=s.flatCap, lo=cap*1.7, span=cap*0.7;
+  const eff=new Float32Array(N);
+  for(let k=0;k<N;k++){
+    if(useMask&&bg[k]) continue;
+    const lift=opened[k]-base;
+    if(lift<=0) continue;
+    const w=clamp((lo-lift)/span,0,1);
+    if(w<=0) continue;
+    eff[k]=lift*w;
+  }
+  const soft=boxBlur(eff,W,H,1);
+  for(let i=0,j=0;j<N;i+=4,j++){
+    const e=soft[j];
+    if(e<=0.5) continue;
+    p[i]  =clamp(p[i]-e,0,255);
+    p[i+1]=clamp(p[i+1]-e,0,255);
+    p[i+2]=clamp(p[i+2]-e,0,255);
+  }
+  ctx.putImageData(img,0,0);
+}
+
 function autoThreshold(it){
   const c=document.createElement('canvas');
   const k=Math.min(1,600/Math.max(it.w,it.h));
@@ -1196,6 +1297,7 @@ function renderToCanvas(item,s,targetW){
   if(s.fmt==='image/jpeg'){ ctx.fillStyle='#fff'; ctx.fillRect(0,0,W,H); }
   ctx.drawImage(item.img,0,0,W,H);
   applyBgRemove(ctx,W,H,s);
+  applyFlatten(ctx,W,H,s);
   applyColorKill(ctx,W,H,s);
   drawWatermark(ctx,W,H,s);
   return c;
@@ -1240,7 +1342,7 @@ function doRender(){
   ctx.clearRect(0,0,backW,backH);
   if(S.fmt==='image/jpeg'){ ctx.fillStyle='#fff'; ctx.fillRect(0,0,backW,backH); }
   ctx.drawImage(it.img,0,0,backW,backH);
-  if(!showOrig){ applyBgRemove(ctx,backW,backH,S); applyColorKill(ctx,backW,backH,S); drawWatermark(ctx,backW,backH,S); }
+  if(!showOrig){ applyBgRemove(ctx,backW,backH,S); applyFlatten(ctx,backW,backH,S); applyColorKill(ctx,backW,backH,S); drawWatermark(ctx,backW,backH,S); }
 
   $('#cw').style.transform=`translate(-50%,-50%) translate(${panX}px,${panY}px)`;
   const pct=Math.round(fitScale*zoom*100);
@@ -1412,7 +1514,7 @@ $('#btnTpl').onclick=openTpl; $('#btnTpl2').onclick=openTpl;
 })();
 
 /* ================= bindings ================= */
-['size','opacity','rotation','margin','offX','offY','tileGap','quality','strokeW','hue','sat','bri','con','ckHue','ckTol','ckFea','ckAmt','bgT','bgFea','bgMin'].forEach(id=>{
+['size','opacity','rotation','margin','offX','offY','tileGap','quality','strokeW','hue','sat','bri','con','ckHue','ckTol','ckFea','ckAmt','bgT','bgFea','bgMin','flatCap','flatR'].forEach(id=>{
   $('#'+id).addEventListener('input',e=>{ S[id]=+e.target.value; syncLabels(); render(); });
 });
 function syncLabels(){
@@ -1427,6 +1529,7 @@ function syncLabels(){
   $('#vCkFea').textContent=fa(S.ckFea)+'°'; $('#vCkAmt').textContent=fa(S.ckAmt)+'٪';
   $('#vBgT').textContent=fa(S.bgT); $('#vBgFea').textContent=fa((S.bgFea/10).toFixed(1));
   $('#vBgMin').textContent=fa(S.bgMin);
+  $('#vFlatCap').textContent=fa(S.flatCap); $('#vFlatR').textContent=fa(S.flatR);
 }
 function seg(id,key,after){
   $$('#'+id+' button').forEach(b=>b.onclick=()=>{
@@ -1499,6 +1602,7 @@ $('#bifCh').addEventListener('change',e=>{S.bifCh=e.target.value;drawBif();rende
 /* ---- حذف پس‌زمینه ---- */
 $('#bgOn').addEventListener('change',e=>{S.bgOn=e.target.checked;render();});
 $('#bgGray').addEventListener('change',e=>{S.bgGray=e.target.checked;render();});
+$('#flatOn').addEventListener('change',e=>{S.flatOn=e.target.checked;render();});
 $('#bgColor').addEventListener('input',e=>{S.bgColor=e.target.value;render();});
 $$('#segBgFill button').forEach(b=>b.onclick=()=>{
   $$('#segBgFill button').forEach(x=>x.classList.toggle('on',x===b));
@@ -1588,7 +1692,7 @@ function syncFromState(){
   $('#shadow').checked=S.shadow; $('#blend').value=S.blend;
   $('#tile').checked=S.tile; $('#stagger').checked=S.stagger;
   $('#maxDim').value=S.maxDim; $('#prefix').value=S.prefix; $('#suffix').value=S.suffix; $('#numbered').checked=S.numbered;
-  ['size','opacity','rotation','margin','offX','offY','tileGap','quality','strokeW','hue','sat','bri','con','ckHue','ckTol','ckFea','ckAmt','bgT','bgFea','bgMin'].forEach(k=>$('#'+k).value=S[k]);
+  ['size','opacity','rotation','margin','offX','offY','tileGap','quality','strokeW','hue','sat','bri','con','ckHue','ckTol','ckFea','ckAmt','bgT','bgFea','bgMin','flatCap','flatR'].forEach(k=>$('#'+k).value=S[k]);
   $$('#segMode button').forEach(b=>b.classList.toggle('on',b.dataset.v===S.mode));
   $$('#segPlate button').forEach(b=>b.classList.toggle('on',b.dataset.v===S.plate));
   $$('#segFmt button').forEach(b=>b.classList.toggle('on',b.dataset.v===S.fmt));
@@ -1600,7 +1704,7 @@ function syncFromState(){
   if(!Array.isArray(S.bifT)) S.bifT=[...BIF_DEF];
   if(!Array.isArray(S.bifU)) S.bifU=[...BIF_DEF];
   $('#ckOn').checked=!!S.ckOn; $('#bgOn').checked=!!S.bgOn;
-  $('#bgGray').checked=!!S.bgGray; $('#bgColor').value=S.bgColor||'#ffffff';
+  $('#bgGray').checked=!!S.bgGray; $('#flatOn').checked=!!S.flatOn; $('#bgColor').value=S.bgColor||'#ffffff';
   $$('#segBgFill button').forEach(b=>b.classList.toggle('on',b.dataset.v===S.bgFill));
   $('#bgColor').style.display=S.bgFill==='color'?'block':'none';
   $('#bifOn').checked=!!S.bifOn; $('#bifCh').value=S.bifCh||'gray'; drawBif();
