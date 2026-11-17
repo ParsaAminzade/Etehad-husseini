@@ -493,6 +493,31 @@
         </details>
 
         <details class="group">
+          <summary><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18"/><circle cx="9" cy="9" r="1.3"/><circle cx="15.5" cy="13" r="1.3"/></svg></span>
+            تنظیم رنگ واترمارک<svg class="chev" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></summary>
+          <div class="group-body">
+            <div class="field"><label>رنگ‌مایه (Hue) <span class="val" id="vHue">۰°</span></label>
+              <input type="range" id="hue" min="-180" max="180" step="1" value="0">
+              <div style="height:7px;border-radius:7px;margin-top:2px;background:linear-gradient(90deg,#f0f,#00f,#0ff,#0f0,#ff0,#f00,#f0f)"></div></div>
+            <div class="field"><label>اشباع رنگ (Saturation) <span class="val" id="vSat">۱۰۰٪</span></label>
+              <input type="range" id="sat" min="0" max="300" step="1" value="100"></div>
+            <div class="field"><label>روشنایی (Brightness) <span class="val" id="vBri">۱۰۰٪</span></label>
+              <input type="range" id="bri" min="0" max="300" step="1" value="100"></div>
+            <div class="field"><label>کنتراست (Contrast) <span class="val" id="vCon">۱۰۰٪</span></label>
+              <input type="range" id="con" min="0" max="300" step="1" value="100"></div>
+            <div class="chips" id="adjPresets">
+              <button class="chip" data-adj="gray">سیاه‌وسفید</button>
+              <button class="chip" data-adj="white">سفیدِ خالص</button>
+              <button class="chip" data-adj="black">سیاهِ خالص</button>
+              <button class="chip" data-adj="pop">رنگ تندتر</button>
+              <button class="chip" data-adj="soft">ملایم</button>
+              <button class="chip" data-adj="reset">بازنشانی</button>
+            </div>
+            <div class="note">روی هر واترمارکی کار می‌کند، چه لوگو چه متن. برای عوض کردن کامل رنگ یک لوگوی تک‌رنگ، «رنگ لوگو» در بخش بالا ساده‌تر است؛ این بخش برای لوگوهای چندرنگ و اصلاح ظریف است.</div>
+          </div>
+        </details>
+
+        <details class="group">
           <summary><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M3 12h18"/><path d="M7 7v10M12 5v14M17 8v8"/></svg></span>
             ترکیب پیشرفته (Blend If)<svg class="chev" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></summary>
           <div class="group-body">
@@ -639,6 +664,7 @@ const S={
   size:20, opacity:50, rotation:0, blend:'source-over',
   tile:false, tileGap:60, stagger:true,
   bifOn:false, bifCh:'gray', bifT:[0,0,255,255], bifU:[0,0,255,255],
+  hue:0, sat:100, bri:100, con:100,
   fmt:'image/jpeg', quality:92, maxDim:0, prefix:'', suffix:'-wm', numbered:false
 };
 let items=[], sel=-1, logos=[], logoId=null, showOrig=false, rafPending=false;
@@ -839,14 +865,33 @@ function bifF(v,a,b,c,d){
 }
 const chVal=(r,g,b,ch)=> ch==='r'?r : ch==='g'?g : ch==='b'?b : (r*299+g*587+b*114)/1000;
 
+/* --- تنظیم رنگ: با فیلتر خود کانواس، بدون حلقه‌ی پیکسلی --- */
+const CAN_FILTER=(()=>{ try{ return 'filter' in document.createElement('canvas').getContext('2d'); }catch(e){ return false; } })();
+function adjActive(s){ return (s.hue||0)!==0 || (s.sat??100)!==100 || (s.bri??100)!==100 || (s.con??100)!==100; }
+function cssFilter(s){
+  const p=[];
+  if((s.hue||0)!==0) p.push('hue-rotate('+s.hue+'deg)');
+  if((s.sat??100)!==100) p.push('saturate('+s.sat+'%)');
+  if((s.bri??100)!==100) p.push('brightness('+s.bri+'%)');
+  if((s.con??100)!==100) p.push('contrast('+s.con+'%)');
+  return p.length?p.join(' '):'none';
+}
+
 function drawWatermark(ctx,W,H,s){
-  if(!bifActive(s)){
+  const adj = CAN_FILTER && adjActive(s);
+  if(!bifActive(s) && !adj){
     ctx.save(); ctx.globalAlpha=s.opacity/100; ctx.globalCompositeOperation=s.blend;
     paintWM(ctx,W,H,s); ctx.restore(); return;
   }
   const off=document.createElement('canvas'); off.width=W; off.height=H;
-  const octx=off.getContext('2d',{willReadFrequently:true});
+  const octx=off.getContext('2d',{willReadFrequently:bifActive(s)});
+  if(adj) octx.filter=cssFilter(s);
   paintWM(octx,W,H,s);
+  if(adj) octx.filter='none';
+  if(!bifActive(s)){
+    ctx.save(); ctx.globalAlpha=s.opacity/100; ctx.globalCompositeOperation=s.blend;
+    ctx.drawImage(off,0,0); ctx.restore(); return;
+  }
   let wm,base;
   try{ wm=octx.getImageData(0,0,W,H); base=ctx.getImageData(0,0,W,H); }
   catch(e){
@@ -1141,7 +1186,7 @@ $('#btnTpl').onclick=openTpl; $('#btnTpl2').onclick=openTpl;
 })();
 
 /* ================= bindings ================= */
-['size','opacity','rotation','margin','offX','offY','tileGap','quality','strokeW'].forEach(id=>{
+['size','opacity','rotation','margin','offX','offY','tileGap','quality','strokeW','hue','sat','bri','con'].forEach(id=>{
   $('#'+id).addEventListener('input',e=>{ S[id]=+e.target.value; syncLabels(); render(); });
 });
 function syncLabels(){
@@ -1150,6 +1195,8 @@ function syncLabels(){
   $('#vOffX').textContent=fa(S.offX); $('#vOffY').textContent=fa(S.offY);
   $('#vGap').textContent=fa(S.tileGap)+'٪'; $('#vQ').textContent=fa(S.quality)+'٪';
   $('#vStroke').textContent=fa(S.strokeW);
+  $('#vHue').textContent=fa(S.hue)+'°'; $('#vSat').textContent=fa(S.sat)+'٪';
+  $('#vBri').textContent=fa(S.bri)+'٪'; $('#vCon').textContent=fa(S.con)+'٪';
 }
 function seg(id,key,after){
   $$('#'+id+' button').forEach(b=>b.onclick=()=>{
@@ -1219,6 +1266,16 @@ const drawBifU=makeBif('bifU','bifU','bifUv');
 function drawBif(){ drawBifT(); drawBifU(); }
 $('#bifOn').addEventListener('change',e=>{S.bifOn=e.target.checked;render();});
 $('#bifCh').addEventListener('change',e=>{S.bifCh=e.target.value;drawBif();render();});
+$$('#adjPresets .chip').forEach(b=>b.onclick=()=>{
+  const k=b.dataset.adj;
+  if(k==='reset') Object.assign(S,{hue:0,sat:100,bri:100,con:100});
+  if(k==='gray')  Object.assign(S,{sat:0});
+  if(k==='white') Object.assign(S,{sat:0,bri:300,con:100});
+  if(k==='black') Object.assign(S,{sat:0,bri:0,con:100});
+  if(k==='pop')   Object.assign(S,{sat:165,con:120});
+  if(k==='soft')  Object.assign(S,{sat:70,con:85,bri:110});
+  syncFromState();
+});
 $$('#bifPresets .chip').forEach(b=>b.onclick=()=>{
   const k=b.dataset.bif;
   if(k==='reset'){ S.bifT=[...BIF_DEF]; S.bifU=[...BIF_DEF]; S.bifOn=false; }
@@ -1257,7 +1314,7 @@ function syncFromState(){
   $('#shadow').checked=S.shadow; $('#blend').value=S.blend;
   $('#tile').checked=S.tile; $('#stagger').checked=S.stagger;
   $('#maxDim').value=S.maxDim; $('#prefix').value=S.prefix; $('#suffix').value=S.suffix; $('#numbered').checked=S.numbered;
-  ['size','opacity','rotation','margin','offX','offY','tileGap','quality','strokeW'].forEach(k=>$('#'+k).value=S[k]);
+  ['size','opacity','rotation','margin','offX','offY','tileGap','quality','strokeW','hue','sat','bri','con'].forEach(k=>$('#'+k).value=S[k]);
   $$('#segMode button').forEach(b=>b.classList.toggle('on',b.dataset.v===S.mode));
   $$('#segPlate button').forEach(b=>b.classList.toggle('on',b.dataset.v===S.plate));
   $$('#segFmt button').forEach(b=>b.classList.toggle('on',b.dataset.v===S.fmt));
