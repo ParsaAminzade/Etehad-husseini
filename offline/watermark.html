@@ -548,6 +548,33 @@
         </details>
 
         <details class="group">
+          <summary><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v16H4z" stroke-dasharray="3 3"/><path d="M9 15l2.5-3 2 2.5L15 12l2 3z" fill="currentColor" stroke="none"/><circle cx="9" cy="9" r="1.4"/></svg></span>
+            حذف پس‌زمینه و واترمارک<svg class="chev" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></summary>
+          <div class="group-body">
+            <label class="sw"><span>فعال‌سازی</span><input type="checkbox" id="bgOn"><span class="track"></span></label>
+            <div class="field">
+              <label>آستانه‌ی روشنایی <span class="val" id="vBgT">۲۰۵</span></label>
+              <input type="range" id="bgT" min="100" max="250" step="1" value="205">
+              <button class="btn sm" id="bgAuto" style="margin-top:6px;width:100%">آستانه را خودکار پیدا کن</button>
+            </div>
+            <div class="field"><label>نرمی لبه <span class="val" id="vBgFea">۰.۸</span></label>
+              <input type="range" id="bgFea" min="0" max="40" step="1" value="8"></div>
+            <div class="field"><label>دور ریختن لکه‌های ریزتر از <span class="val" id="vBgMin">۵</span></label>
+              <input type="range" id="bgMin" min="0" max="100" step="1" value="5"></div>
+            <label class="sw"><span>خاکستری کردن (حذف ته‌رنگ واترمارک)</span><input type="checkbox" id="bgGray" checked><span class="track"></span></label>
+            <div class="field"><label>پس‌زمینه‌ی خروجی</label>
+              <div class="seg" id="segBgFill"><button data-v="white" class="on">سفید</button><button data-v="none">شفاف</button><button data-v="color">رنگ دلخواه</button></div>
+              <input type="color" id="bgColor" value="#ffffff" style="margin-top:6px;display:none"></div>
+            <div class="note" id="bgInfo"></div>
+            <div class="note">
+              برای عکس محصول روی زمینه‌ی سفید ساخته شده. از لبه‌های کادر به سمت داخل پر می‌شود،
+              پس واترمارکِ روشن پاک می‌شود ولی سوژه و جزئیات داخلش (مثل پایه‌های فلزی براق) سالم می‌مانند.
+              اگر سوژه‌ات روشن یا سفید است، آستانه را پایین بیاور و نتیجه را چک کن.
+            </div>
+          </div>
+        </details>
+
+        <details class="group">
           <summary><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M19 3l2 2-8.5 8.5-2-2z"/><path d="M10.5 11.5L4 18v2h2l6.5-6.5"/><circle cx="7" cy="7" r="2.5"/></svg></span>
             تضعیف یک رنگ در عکس‌ها<svg class="chev" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></summary>
           <div class="group-body">
@@ -699,6 +726,7 @@ const S={
   bifOn:false, bifCh:'gray', bifT:[0,0,255,255], bifU:[0,0,255,255],
   hue:0, sat:100, bri:100, con:100,
   ckOn:false, ckHue:0, ckTol:40, ckFea:30, ckAmt:60,
+  bgOn:false, bgT:205, bgFea:8, bgMin:5, bgGray:true, bgFill:'white', bgColor:'#ffffff',
   fmt:'image/jpeg', quality:92, maxDim:0, prefix:'', suffix:'-wm', numbered:false
 };
 let items=[], sel=-1, logos=[], logoId=null, showOrig=false, rafPending=false;
@@ -899,6 +927,121 @@ function bifF(v,a,b,c,d){
 }
 const chVal=(r,g,b,ch)=> ch==='r'?r : ch==='g'?g : ch==='b'?b : (r*299+g*587+b*114)/1000;
 
+/* --- حذف پس‌زمینه و واترمارک: پر کردن از لبه‌های کادر به سمت داخل --- */
+let bgStat={frac:0,warn:false};
+function boxBlur(src,W,H,r){
+  if(r<1) return src;
+  const tmp=new Float32Array(src.length), out=new Float32Array(src.length), d=r*2+1;
+  for(let y=0;y<H;y++){
+    let acc=0, o=y*W;
+    for(let x=-r;x<=r;x++) acc+=src[o+clamp(x,0,W-1)];
+    for(let x=0;x<W;x++){
+      tmp[o+x]=acc/d;
+      acc+=src[o+clamp(x+r+1,0,W-1)]-src[o+clamp(x-r,0,W-1)];
+    }
+  }
+  for(let x=0;x<W;x++){
+    let acc=0;
+    for(let y=-r;y<=r;y++) acc+=tmp[clamp(y,0,H-1)*W+x];
+    for(let y=0;y<H;y++){
+      out[y*W+x]=acc/d;
+      acc+=tmp[clamp(y+r+1,0,H-1)*W+x]-tmp[clamp(y-r,0,H-1)*W+x];
+    }
+  }
+  return out;
+}
+function applyBgRemove(ctx,W,H,s){
+  if(!s.bgOn) return;
+  let img; try{ img=ctx.getImageData(0,0,W,H); }catch(e){ return; }
+  const p=img.data, N=W*H;
+
+  if(s.bgGray) for(let i=0;i<p.length;i+=4){
+    const L=(p[i]*299+p[i+1]*587+p[i+2]*114)/1000; p[i]=p[i+1]=p[i+2]=L;
+  }
+  const lum=new Uint8Array(N);
+  for(let i=0,j=0;j<N;i+=4,j++) lum[j]=(p[i]*299+p[i+1]*587+p[i+2]*114)/1000;
+
+  // ۱) سیلاب از لبه‌ها روی هرچه روشن‌تر از آستانه
+  const T=s.bgT, bg=new Uint8Array(N), st=new Int32Array(N);
+  let sp=0;
+  const push=k=>{ if(!bg[k]&&lum[k]>T){ bg[k]=1; st[sp++]=k; } };
+  for(let x=0;x<W;x++){ push(x); push((H-1)*W+x); }
+  for(let y=0;y<H;y++){ push(y*W); push(y*W+W-1); }
+  while(sp){
+    const k=st[--sp], x=k%W, y=(k-x)/W;
+    if(x>0) push(k-1);
+    if(x<W-1) push(k+1);
+    if(y>0) push(k-W);
+    if(y<H-1) push(k+W);
+  }
+
+  // ۲) دور ریختن لکه‌های ریز باقی‌مانده
+  const minA=Math.max(8, Math.round(N*(s.bgMin/10000)));
+  const lbl=new Int32Array(N), sizes=[0];
+  let cur=0;
+  if(minA>8 || true) for(let k0=0;k0<N;k0++){
+    if(bg[k0]||lbl[k0]) continue;
+    cur++; let sp2=0, cnt=0; st[sp2++]=k0; lbl[k0]=cur;
+    while(sp2){
+      const k=st[--sp2]; cnt++;
+      const x=k%W, y=(k-x)/W;
+      let r;
+      if(x>0){ r=k-1; if(!bg[r]&&!lbl[r]){ lbl[r]=cur; st[sp2++]=r; } }
+      if(x<W-1){ r=k+1; if(!bg[r]&&!lbl[r]){ lbl[r]=cur; st[sp2++]=r; } }
+      if(y>0){ r=k-W; if(!bg[r]&&!lbl[r]){ lbl[r]=cur; st[sp2++]=r; } }
+      if(y<H-1){ r=k+W; if(!bg[r]&&!lbl[r]){ lbl[r]=cur; st[sp2++]=r; } }
+    }
+    sizes[cur]=cnt;
+  }
+
+  // ۳) ماسک، نرمی لبه، و نشاندن روی پس‌زمینه
+  let a=new Float32Array(N);
+  let keep=0;
+  for(let k=0;k<N;k++){
+    const on = !bg[k] && sizes[lbl[k]]>=minA;
+    if(on) keep++;
+    a[k]=on?1:0;
+  }
+  const r=Math.round(s.bgFea/10);
+  if(r>=1) a=boxBlur(a,W,H,r);
+
+  const transparent = s.bgFill==='none' && s.fmt!=='image/jpeg';
+  let fr=255,fg=255,fb=255;
+  if(s.bgFill==='color'){
+    const c=s.bgColor||'#ffffff';
+    fr=parseInt(c.slice(1,3),16); fg=parseInt(c.slice(3,5),16); fb=parseInt(c.slice(5,7),16);
+  }
+  for(let i=0,j=0;j<N;i+=4,j++){
+    const v=a[j];
+    if(v>=0.999) continue;
+    if(transparent){ p[i+3]=v*255; }
+    else{
+      p[i]  =p[i]*v+fr*(1-v);
+      p[i+1]=p[i+1]*v+fg*(1-v);
+      p[i+2]=p[i+2]*v+fb*(1-v);
+    }
+  }
+  ctx.putImageData(img,0,0);
+
+  const frac=keep/N;
+  bgStat={frac, warn: frac>0.55 || frac<0.0004};
+}
+function autoThreshold(it){
+  const c=document.createElement('canvas');
+  const k=Math.min(1,600/Math.max(it.w,it.h));
+  c.width=Math.max(1,Math.round(it.w*k)); c.height=Math.max(1,Math.round(it.h*k));
+  const x=c.getContext('2d',{willReadFrequently:true});
+  x.drawImage(it.img,0,0,c.width,c.height);
+  const d=x.getImageData(0,0,c.width,c.height).data, hist=new Float64Array(256);
+  for(let i=0;i<d.length;i+=4) hist[(d[i]*299+d[i+1]*587+d[i+2]*114)/1000|0]++;
+  let hi=200, peak=0;
+  for(let v=200;v<256;v++) if(hist[v]>peak){ peak=hist[v]; hi=v; }
+  if(!peak) return 205;
+  let t=205;
+  for(let v=hi-3;v>=110;v--) if(hist[v]<peak*0.004){ t=v+3; break; }
+  return clamp(t,110,248);
+}
+
 /* --- تضعیف یک رنگ مشخص در خود عکس (هدف‌گیری بر اساس رنگ‌مایه) --- */
 function ckActive(s){ return !!s.ckOn && (s.ckAmt|0)>0; }
 function rgbHue(r,g,b){
@@ -1052,6 +1195,7 @@ function renderToCanvas(item,s,targetW){
   const ctx=c.getContext('2d'); ctx.imageSmoothingQuality='high';
   if(s.fmt==='image/jpeg'){ ctx.fillStyle='#fff'; ctx.fillRect(0,0,W,H); }
   ctx.drawImage(item.img,0,0,W,H);
+  applyBgRemove(ctx,W,H,s);
   applyColorKill(ctx,W,H,s);
   drawWatermark(ctx,W,H,s);
   return c;
@@ -1096,13 +1240,19 @@ function doRender(){
   ctx.clearRect(0,0,backW,backH);
   if(S.fmt==='image/jpeg'){ ctx.fillStyle='#fff'; ctx.fillRect(0,0,backW,backH); }
   ctx.drawImage(it.img,0,0,backW,backH);
-  if(!showOrig){ applyColorKill(ctx,backW,backH,S); drawWatermark(ctx,backW,backH,S); }
+  if(!showOrig){ applyBgRemove(ctx,backW,backH,S); applyColorKill(ctx,backW,backH,S); drawWatermark(ctx,backW,backH,S); }
 
   $('#cw').style.transform=`translate(-50%,-50%) translate(${panX}px,${panY}px)`;
   const pct=Math.round(fitScale*zoom*100);
   $('#zPct').textContent=pct+'%';
   const out=outSize(it);
   $('#info').textContent=`${sel+1}/${items.length} · ${it.w}×${it.h} → ${out.w}×${out.h} · ${fmtName(S.fmt)}`;
+  const bi=$('#bgInfo');
+  if(bi){
+    if(!S.bgOn || showOrig) bi.textContent='';
+    else if(bgStat.warn) bi.innerHTML='<b style="color:var(--danger)">این عکس مشکوک است</b> — سوژه '+fa(Math.round(bgStat.frac*1000)/10)+'٪ کادر شد. احتمالاً سوژه روشن است یا آستانه نامناسب. قبل از خروجی گرفتن نگاهش کن.';
+    else bi.textContent='سوژه '+fa(Math.round(bgStat.frac*1000)/10)+'٪ کادر را گرفت.';
+  }
 }
 function outSize(it){
   const md=+S.maxDim||0; let k=1;
@@ -1262,7 +1412,7 @@ $('#btnTpl').onclick=openTpl; $('#btnTpl2').onclick=openTpl;
 })();
 
 /* ================= bindings ================= */
-['size','opacity','rotation','margin','offX','offY','tileGap','quality','strokeW','hue','sat','bri','con','ckHue','ckTol','ckFea','ckAmt'].forEach(id=>{
+['size','opacity','rotation','margin','offX','offY','tileGap','quality','strokeW','hue','sat','bri','con','ckHue','ckTol','ckFea','ckAmt','bgT','bgFea','bgMin'].forEach(id=>{
   $('#'+id).addEventListener('input',e=>{ S[id]=+e.target.value; syncLabels(); render(); });
 });
 function syncLabels(){
@@ -1275,6 +1425,8 @@ function syncLabels(){
   $('#vBri').textContent=fa(S.bri)+'٪'; $('#vCon').textContent=fa(S.con)+'٪';
   $('#vCkHue').textContent=fa(S.ckHue)+'°'; $('#vCkTol').textContent=fa(S.ckTol)+'°';
   $('#vCkFea').textContent=fa(S.ckFea)+'°'; $('#vCkAmt').textContent=fa(S.ckAmt)+'٪';
+  $('#vBgT').textContent=fa(S.bgT); $('#vBgFea').textContent=fa((S.bgFea/10).toFixed(1));
+  $('#vBgMin').textContent=fa(S.bgMin);
 }
 function seg(id,key,after){
   $$('#'+id+' button').forEach(b=>b.onclick=()=>{
@@ -1344,6 +1496,21 @@ const drawBifU=makeBif('bifU','bifU','bifUv');
 function drawBif(){ drawBifT(); drawBifU(); }
 $('#bifOn').addEventListener('change',e=>{S.bifOn=e.target.checked;render();});
 $('#bifCh').addEventListener('change',e=>{S.bifCh=e.target.value;drawBif();render();});
+/* ---- حذف پس‌زمینه ---- */
+$('#bgOn').addEventListener('change',e=>{S.bgOn=e.target.checked;render();});
+$('#bgGray').addEventListener('change',e=>{S.bgGray=e.target.checked;render();});
+$('#bgColor').addEventListener('input',e=>{S.bgColor=e.target.value;render();});
+$$('#segBgFill button').forEach(b=>b.onclick=()=>{
+  $$('#segBgFill button').forEach(x=>x.classList.toggle('on',x===b));
+  S.bgFill=b.dataset.v; $('#bgColor').style.display=S.bgFill==='color'?'block':'none'; render();
+});
+$('#bgAuto').onclick=()=>{
+  if(sel<0){ toast('اول یک عکس انتخاب کن','err'); return; }
+  S.bgT=autoThreshold(items[sel]); S.bgOn=true;
+  $('#bgOn').checked=true; $('#bgT').value=S.bgT; syncLabels(); render();
+  toast('آستانه روی '+fa(S.bgT)+' تنظیم شد','ok');
+};
+
 /* ---- تضعیف رنگ: سوییچ، میانبرهای رنگ، قطره‌چکان ---- */
 $('#ckOn').addEventListener('change',e=>{S.ckOn=e.target.checked;render();});
 $$('#ckHues .chip').forEach(b=>b.onclick=()=>{
@@ -1421,7 +1588,7 @@ function syncFromState(){
   $('#shadow').checked=S.shadow; $('#blend').value=S.blend;
   $('#tile').checked=S.tile; $('#stagger').checked=S.stagger;
   $('#maxDim').value=S.maxDim; $('#prefix').value=S.prefix; $('#suffix').value=S.suffix; $('#numbered').checked=S.numbered;
-  ['size','opacity','rotation','margin','offX','offY','tileGap','quality','strokeW','hue','sat','bri','con','ckHue','ckTol','ckFea','ckAmt'].forEach(k=>$('#'+k).value=S[k]);
+  ['size','opacity','rotation','margin','offX','offY','tileGap','quality','strokeW','hue','sat','bri','con','ckHue','ckTol','ckFea','ckAmt','bgT','bgFea','bgMin'].forEach(k=>$('#'+k).value=S[k]);
   $$('#segMode button').forEach(b=>b.classList.toggle('on',b.dataset.v===S.mode));
   $$('#segPlate button').forEach(b=>b.classList.toggle('on',b.dataset.v===S.plate));
   $$('#segFmt button').forEach(b=>b.classList.toggle('on',b.dataset.v===S.fmt));
@@ -1432,7 +1599,10 @@ function syncFromState(){
   $$('#grid9 button').forEach((x,j)=>x.classList.toggle('on',S.posMode==='grid'&&j===S.grid));
   if(!Array.isArray(S.bifT)) S.bifT=[...BIF_DEF];
   if(!Array.isArray(S.bifU)) S.bifU=[...BIF_DEF];
-  $('#ckOn').checked=!!S.ckOn;
+  $('#ckOn').checked=!!S.ckOn; $('#bgOn').checked=!!S.bgOn;
+  $('#bgGray').checked=!!S.bgGray; $('#bgColor').value=S.bgColor||'#ffffff';
+  $$('#segBgFill button').forEach(b=>b.classList.toggle('on',b.dataset.v===S.bgFill));
+  $('#bgColor').style.display=S.bgFill==='color'?'block':'none';
   $('#bifOn').checked=!!S.bifOn; $('#bifCh').value=S.bifCh||'gray'; drawBif();
   syncLabels(); render();
 }
@@ -1523,10 +1693,11 @@ async function saveAll(){
   if(S.mode==='logo'&&!currentLogo()){ toast('اول یک لوگو انتخاب کن (یا برو روی حالت متن)','err'); return; }
   const btns=[$('#btnSaveAll'),$('#btnSaveAll2'),$('#btnSaveOne')];
   btns.forEach(b=>b.disabled=true); $('#bar').classList.add('on');
-  const files=[];
+  const files=[]; const suspect=[];
   try{
     for(let i=0;i<items.length;i++){
       const b=await renderItem(items[i]);
+      if(S.bgOn && bgStat.warn) suspect.push(items[i].name);
       if(b) files.push({name:outName(items[i],i),data:new Uint8Array(await b.arrayBuffer())});
       $('#barFill').style.width=Math.round((i+1)/items.length*100)+'%';
       await new Promise(r=>setTimeout(r,0));
@@ -1535,6 +1706,7 @@ async function saveAll(){
     if(files.length===1) ok=await dl(new Blob([files[0].data]),files[0].name);
     else ok=await dl(new Blob([makeZip(files)],{type:'application/zip'}),'watermarked-'+new Date().toISOString().slice(0,10)+'.zip');
     if(ok) toast(fa(files.length)+' عکس آماده شد','ok');
+    if(suspect.length) toast(fa(suspect.length)+' عکس مشکوک بود و باید چکشان کنی: '+suspect.slice(0,3).join('، ')+(suspect.length>3?' و…':''),'err');
   }catch(e){ toast('خطا: '+e.message,'err'); }
   finally{ btns.forEach(b=>b.disabled=false); $('#bar').classList.remove('on'); $('#barFill').style.width='0'; }
 }
